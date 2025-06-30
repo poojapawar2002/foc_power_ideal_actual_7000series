@@ -1,8 +1,11 @@
 import streamlit as st
 import pandas as pd
+from pymongo import MongoClient
 import plotly.graph_objects as go
 import seaborn as sns
 import numpy as np
+
+st.set_page_config(page_title="Vessel Power vs FOC", layout="wide")
 
 def add_trendline(fig, x, y, label, color, line_style='dash'):
     # Convert to NumPy and clean
@@ -49,8 +52,22 @@ vessel_names = {1023 : "MH Perseus" ,
 
 name_to_id = {v: k for k, v in vessel_names.items()}
 
-# Load data
-df = pd.read_csv("../Data/Updated_autolog_complete_input_ideal_power_foc_7000series_except1004.csv")
+@st.cache_data(ttl=600)  # cache for 10 minutes
+def load_data(collection_name):
+    # connect and query once
+    mongo_uri = st.secrets["mongo"]["uri"]
+    client = MongoClient(mongo_uri)
+    db = client["seaker_data"]
+    collection = db[collection_name]
+
+    data = list(collection.find())
+    df = pd.DataFrame(data)
+    df.drop(columns=['_id'], inplace=True)
+
+    return df
+
+df = load_data("Updated_autolog_complete_input_ideal_power_foc_7000series_except1004")
+# df = pd.read_csv("../Data/Updated_autolog_complete_input_ideal_power_foc_7000series_except1004.csv")
 
 df["ideal_foc"] = df["ideal_foc_hr"]
 
@@ -60,7 +77,7 @@ df["LCVCorrectedFOC"] = (df["MEFuelMassCons"] / 1000)  * df["MEFuelLCV"] /40.6
 
 
 # Streamlit setup
-st.set_page_config(page_title="Vessel Power vs FOC", layout="wide")
+
 st.title("Power vs FOC")
 
 # Vessel filter
