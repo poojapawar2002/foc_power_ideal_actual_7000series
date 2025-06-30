@@ -68,15 +68,45 @@ def load_data(collection_name):
 
 df = load_data("Updated_autolog_complete_input_ideal_power_foc_7000series_except1004")
 # df = pd.read_csv("../Data/Updated_autolog_complete_input_ideal_power_foc_7000series_except1004.csv")
+df = df[df["ME1RunningHoursMinute"] > 0]
 
-df["ideal_foc"] = df["ideal_foc_hr"]
+df = df[["VesselId", "StartDateUTC", "ME1ShaftPower", "ME1RunningHoursMinute", "MEFuelMassCons",
+         "MEFuelLCV", "SpeedOG", "DraftAftTele", "DraftFwdTele",
+         "ideal_power", "ideal_foc_hr"]]
+
+cassiopeia = load_data("cassiopeia_autolog_idealPowerFOC")
+
+cassiopeia = cassiopeia[cassiopeia["ME1RunningHoursMinute"] > 0]
+
+cassiopeia = cassiopeia[["VesselId", "StartDateUTC", "ME1ShaftPower", "ME1RunningHoursMinute", "MEFuelMassCons",
+         "MEFuelLCV", "SpeedOG", "DraftAftTele", "DraftFwdTele",
+         "ideal_power", "ideal_foc_hr"]]
+
+# st.write(type(cassiopeia["ME1RunningHoursMinute"][0]), type(cassiopeia["ideal_foc_hr"][0]))
+
+#concat to df
+df = pd.concat([df, cassiopeia], ignore_index=True)
+
+df.rename(columns = {"ideal_foc_hr": "ideal_foc"}, inplace=True)
 
 # Compute derived fields
 df["MeanDraft"] = (df["DraftAftTele"] + df["DraftFwdTele"]) / 2
 df["LCVCorrectedFOC"] = (((df["MEFuelMassCons"] / 1000)  * df["MEFuelLCV"] /40.6)/df["ME1RunningHoursMinute"])*1440
 
+df["ideal_foc"] = pd.to_numeric(df["ideal_foc"], errors='coerce')
+df["ME1RunningHoursMinute"] = pd.to_numeric(df["ME1RunningHoursMinute"], errors='coerce')
+
 df["ideal_foc"] = (df["ideal_foc"]/df["ME1RunningHoursMinute"]) * 1440
 
+df["StartDateUTC"] = pd.to_datetime(df["StartDateUTC"], format = "%d-%m-%Y %H:%M", dayfirst=True, errors='coerce')
+
+df = df[~(
+    (df["VesselId"] == 1005) &
+    (df["StartDateUTC"] >= "2025-03-12") &
+    (df["StartDateUTC"] <= "2025-04-14")
+)]# exclude after 12 april 2025 and before 13 march 2025 for PISCES
+
+df = df[((df["LCVCorrectedFOC"] - df["ideal_foc"]) / df["ideal_foc"] * 100) < 100]  # filter outliers
 
 # Streamlit setup
 
@@ -85,7 +115,7 @@ st.title("Power vs FOC")
 # Vessel filter
 vessels = sorted(df["VesselId"].unique())
 
-base_colors = sns.color_palette("Set1", n_colors=8)
+base_colors = sns.color_palette("Set1", n_colors=9)
 color_map = {}
 for i, vessel in enumerate(vessels):
     dark = base_colors[i % len(base_colors)]
