@@ -1,8 +1,6 @@
 pandas
 numpy
 plotly
-seabon
+seaborn
 pymongo
-streamlit
-scikit-learn
-scipy
+
