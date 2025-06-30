@@ -73,7 +73,9 @@ df["ideal_foc"] = df["ideal_foc_hr"]
 
 # Compute derived fields
 df["MeanDraft"] = (df["DraftAftTele"] + df["DraftFwdTele"]) / 2
-df["LCVCorrectedFOC"] = (df["MEFuelMassCons"] / 1000)  * df["MEFuelLCV"] /40.6
+df["LCVCorrectedFOC"] = (((df["MEFuelMassCons"] / 1000)  * df["MEFuelLCV"] /40.6)/df["ME1RunningHoursMinute"])*1440
+
+df["ideal_foc"] = (df["ideal_foc"]/df["ME1RunningHoursMinute"]) * 1440
 
 
 # Streamlit setup
@@ -186,7 +188,7 @@ with plot_col:
     fig.update_layout(
         title="FOC vs Power: Actual ● vs Ideal ◆",
         xaxis_title="Power (kW)",
-        yaxis_title="Fuel Oil Consumption (MT)",
+        yaxis_title="Fuel Oil Consumption (MT/day)",
         legend_title="Vessel ID + Type",
         height=700
     )
