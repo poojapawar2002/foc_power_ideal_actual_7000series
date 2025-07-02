@@ -71,7 +71,7 @@ df = load_data("Updated_autolog_complete_input_ideal_power_foc_7000series_except
 df = df[df["ME1RunningHoursMinute"] > 0]
 
 df = df[["VesselId", "StartDateUTC", "ME1ShaftPower", "ME1RunningHoursMinute", "MEFuelMassCons",
-         "MEFuelLCV", "SpeedOG", "DraftAftTele", "DraftFwdTele",
+         "MEFuelLCV", "SpeedOG", "DraftAftNoon", "DraftFwdNoon",
          "ideal_power", "ideal_foc_hr"]]
 
 cassiopeia = load_data("cassiopeia_autolog_idealPowerFOC")
@@ -79,7 +79,7 @@ cassiopeia = load_data("cassiopeia_autolog_idealPowerFOC")
 cassiopeia = cassiopeia[cassiopeia["ME1RunningHoursMinute"] > 0]
 
 cassiopeia = cassiopeia[["VesselId", "StartDateUTC", "ME1ShaftPower", "ME1RunningHoursMinute", "MEFuelMassCons",
-         "MEFuelLCV", "SpeedOG", "DraftAftTele", "DraftFwdTele",
+         "MEFuelLCV", "SpeedOG", "DraftAftNoon", "DraftFwdNoon",
          "ideal_power", "ideal_foc_hr"]]
 
 # st.write(type(cassiopeia["ME1RunningHoursMinute"][0]), type(cassiopeia["ideal_foc_hr"][0]))
@@ -90,7 +90,8 @@ df = pd.concat([df, cassiopeia], ignore_index=True)
 df.rename(columns = {"ideal_foc_hr": "ideal_foc"}, inplace=True)
 
 # Compute derived fields
-df["MeanDraft"] = (df["DraftAftTele"] + df["DraftFwdTele"]) / 2
+df["MeanDraft"] = (df["DraftAftNoon"] + df["DraftFwdNoon"]) / 2
+
 df["LCVCorrectedFOC"] = (((df["MEFuelMassCons"] / 1000)  * df["MEFuelLCV"] /40.6)/df["ME1RunningHoursMinute"])*1440
 
 df["ideal_foc"] = pd.to_numeric(df["ideal_foc"], errors='coerce')
@@ -105,6 +106,12 @@ df = df[~(
     (df["StartDateUTC"] >= "2025-03-12") &
     (df["StartDateUTC"] <= "2025-04-14")
 )]# exclude after 12 april 2025 and before 13 march 2025 for PISCES
+
+df = df[~((df["VesselId"]== 1007) & (df["LCVCorrectedFOC"]>53) & (df["ME1ShaftPower"] < 12000))] 
+df = df[~((df["VesselId"]== 1007) & (df["LCVCorrectedFOC"]>60) & (df["ME1ShaftPower"] < 14000))] 
+df = df[~((df["VesselId"]== 1007) & (df["LCVCorrectedFOC"]>20) & (df["ME1ShaftPower"] < 5000) & (df["ME1ShaftPower"] > 200))] 
+
+df = df[df["SpeedOG"]>10] 
 
 df = df[((df["LCVCorrectedFOC"] - df["ideal_foc"]) / df["ideal_foc"] * 100) < 100]  # filter outliers
 
